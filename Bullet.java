@@ -53,7 +53,7 @@ public abstract class Bullet extends GameObject {
             double angle = Math.atan2(dx, dy); // Calculate angle from dx, dy
             g2d.rotate(angle);
         	// Draw the sprite, centered on the bullet's x and y coordinates
-            g2d.drawImage(sprite, (int) x - size / 2, (int) y - size / 2, size, size, null);
+            g2d.drawImage(sprite, (int) - size / 2, (int) - size / 2, size, size, null);
             
             // g2d.dispose();
         } else {
