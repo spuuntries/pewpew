@@ -9,6 +9,6 @@ import javax.imageio.ImageIO;
 
 public class BasicBullet extends Bullet {
     public BasicBullet(int x, int y, double angle) {
-        super(x, y, angle, 15, 10, 30, /*Color.YELLOW*/ "/Small_Bullet.png");
+        super(x, y, angle, 15, 10, 30, /*Color.YELLOW*/ "/resources/Small_Bullet.png");
     }
 }
