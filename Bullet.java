@@ -3,9 +3,9 @@ package pewpew;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-
 import javax.imageio.ImageIO;
 
 public abstract class Bullet extends GameObject {
@@ -16,18 +16,18 @@ public abstract class Bullet extends GameObject {
     protected Color color;
     protected BufferedImage sprite;
 
-    public Bullet(int x, int y, double angle, int speed, int damage, int size, String spritePath /*Color color*/) {  
+    public Bullet(int x, int y, double angle, int speed, int damage, int size, String spritePath /* Color color */) {
         super(x, y);
         this.speed = speed;
         this.damage = damage;
         this.size = size;
-        //this.color = color;
+        // this.color = color;
         this.sprite = loadImage(spritePath);
         dx = speed * Math.cos(angle);
         dy = speed * Math.sin(angle);
     }
-    
- // Load an image from the specified path
+
+    // Load an image from the specified path
     private BufferedImage loadImage(String path) {
         try {
             return ImageIO.read(getClass().getResource(path));
@@ -41,27 +41,33 @@ public abstract class Bullet extends GameObject {
     public void update() {
         x += dx;
         y += dy;
+
     }
-    
-    
+
+    private BufferedImage rotateImage(BufferedImage image, double angle) {
+        int w = image.getWidth();
+        int h = image.getHeight();
+        BufferedImage rotatedImage = new BufferedImage(w, h, image.getType());
+        Graphics2D g2d = rotatedImage.createGraphics();
+        g2d.rotate(angle, w / 2.0, h / 2.0);
+        g2d.drawImage(image, 0, 0, null);
+        g2d.dispose();
+        return rotatedImage;
+    }
+
     public void render(Graphics g) {
         if (sprite != null) {
             Graphics2D g2d = (Graphics2D) g.create();
-            // Bullet's center
-            g2d.translate((int) x, (int) y);
-            // Rotate by the bullet's angle (in radians)
-            double angle = Math.atan2(dx, dy); // Calculate angle from dx, dy
-            g2d.rotate(angle);
-        	// Draw the sprite, centered on the bullet's x and y coordinates
-            g2d.drawImage(sprite, (int) - size / 2, (int) - size / 2, size, size, null);
-            
+            BufferedImage rotatedSprite = rotateImage(sprite, Math.atan2(dy, dx));
+            // Draw the sprite, centered on the bullet's x and y coordinates
+            g2d.drawImage(rotatedSprite, (int) x, (int) y, size, size, null);
+
             // g2d.dispose();
         } else {
             g.setColor(color); // Optional color if no sprite
             g.fillOval((int) x - size / 2, (int) y - size / 2, size, size);
         }
     }
-
 
     public int getDamage() {
         return damage;
@@ -71,7 +77,9 @@ public abstract class Bullet extends GameObject {
         return size;
     }
 
-    /*public Color getColor() {
-        return color;
-    }*/
+    /*
+     * public Color getColor() {
+     * return color;
+     * }
+     */
 }
