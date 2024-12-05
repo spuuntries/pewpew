@@ -1,15 +1,24 @@
 package pewpew;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Point;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Random;
 
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.Timer;
+
 public class GamePanel extends JPanel implements ActionListener, KeyListener {
-    private static final int WIDTH = 800;
-    private static final int HEIGHT = 600;
+    private static final int WIDTH = 1280;
+    private static final int HEIGHT = 720;
 
     private Player player;
     private ArrayList<Enemy> enemies;
@@ -20,7 +29,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
     public GamePanel() {
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
-        setBackground(Color.BLACK);
+        setBackground(Color.GRAY);
         setFocusable(true);
         addKeyListener(this);
 
@@ -43,19 +52,20 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         super.paintComponent(g);
 
         // Draw player
-        g.setColor(Color.BLUE);
+        g.setColor(Color.RED);
         g.fillRect(player.getX(), player.getY(), Player.getSize(), Player.getSize());
 
         // Draw enemies
-        g.setColor(Color.RED);
+        g.setColor(Color.BLACK);
         for (Enemy enemy : enemies) {
             g.fillOval(enemy.getX(), enemy.getY(), Enemy.getSize(), Enemy.getSize());
         }
 
         // Draw bullets with their specific colors
         for (Bullet bullet : bullets) {
-            g.setColor(bullet.getColor());
-            g.fillOval(bullet.getX(), bullet.getY(), bullet.getSize(), bullet.getSize());
+            //g.setColor(bullet.getColor());
+            //g.fillOval(bullet.getX(), bullet.getY(), bullet.getSize(), bullet.getSize());
+        	bullet.render(g);
         }
 
         // Draw score and current weapon
@@ -132,16 +142,20 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     public void keyPressed(KeyEvent e) {
         switch (e.getKeyCode()) {
             case KeyEvent.VK_W:
-                player.setDY(-5);
+            case KeyEvent.VK_UP:
+                player.setDY(-15);
                 break;
             case KeyEvent.VK_S:
-                player.setDY(5);
+            case KeyEvent.VK_DOWN:
+                player.setDY(15);
                 break;
             case KeyEvent.VK_A:
-                player.setDX(-5);
+            case KeyEvent.VK_LEFT:
+                player.setDX(-15);
                 break;
             case KeyEvent.VK_D:
-                player.setDX(5);
+            case KeyEvent.VK_RIGHT:
+                player.setDX(15);
                 break;
             case KeyEvent.VK_1:
                 player.switchWeapon(0);
@@ -155,9 +169,10 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
             case KeyEvent.VK_SPACE:
                 Point mouse = getMousePosition();
                 if (mouse != null) {
-                    double angle = Math.atan2(mouse.y - player.getY(),
-                            mouse.x - player.getX());
+                    double angle = Math.atan2(mouse.y - player.getY(),mouse.x - player.getX());
+                    
                     bullets.addAll(player.shoot(angle));
+                    
                 }
                 break;
         }
@@ -168,10 +183,14 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         switch (e.getKeyCode()) {
             case KeyEvent.VK_W:
             case KeyEvent.VK_S:
+            case KeyEvent.VK_UP:
+            case KeyEvent.VK_DOWN:
                 player.setDY(0);
                 break;
             case KeyEvent.VK_A:
             case KeyEvent.VK_D:
+            case KeyEvent.VK_LEFT:
+            case KeyEvent.VK_RIGHT:
                 player.setDX(0);
                 break;
         }

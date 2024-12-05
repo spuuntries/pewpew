@@ -5,8 +5,8 @@ import java.util.ArrayList;
 public class Player extends GameObject {
     private int dx, dy;
     private static final int PLAYER_SIZE = 30;
-    private static final int WIDTH = 800;
-    private static final int HEIGHT = 600;
+    private static final int WIDTH = 1280;
+    private static final int HEIGHT = 720;
     private Weapon currentWeapon;
     private ArrayList<Weapon> weapons;
 
@@ -21,7 +21,7 @@ public class Player extends GameObject {
     }
 
     public ArrayList<Bullet> shoot(double angle) {
-        return currentWeapon.shoot(x + PLAYER_SIZE / 2, y + PLAYER_SIZE / 2, angle);
+    	return currentWeapon.shoot(x + PLAYER_SIZE / 2, y + PLAYER_SIZE / 2, angle);
     }
 
     public void switchWeapon(int index) {

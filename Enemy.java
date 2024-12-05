@@ -3,9 +3,9 @@ package pewpew;
 import java.util.Random;
 
 public class Enemy extends GameObject {
-    private static final int ENEMY_SIZE = 20;
-    private static final int WIDTH = 800;
-    private static final int HEIGHT = 600;
+    private static final int ENEMY_SIZE = 25;
+    private static final int WIDTH = 1280;
+    private static final int HEIGHT = 720;
     private static final Random random = new Random();
     private Player player;
 
