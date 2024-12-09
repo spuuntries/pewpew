@@ -27,6 +27,13 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     private Random random;
     private int score;
 
+    // New movement control variables
+    private boolean leftPressed = false;
+    private boolean rightPressed = false;
+    private boolean upPressed = false;
+    private boolean downPressed = false;
+    private boolean isFiring = false;
+
     public GamePanel() {
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         setBackground(Color.GRAY);
@@ -63,15 +70,12 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
         // Draw bullets with their specific colors
         for (Bullet bullet : bullets) {
-            //g.setColor(bullet.getColor());
-            //g.fillOval(bullet.getX(), bullet.getY(), bullet.getSize(), bullet.getSize());
-        	bullet.render(g);
+            bullet.render(g);
         }
 
         // Draw score and current weapon
         g.setColor(Color.WHITE);
         g.drawString("Score: " + score, 10, 20);
-
     }
 
     @Override
@@ -84,6 +88,15 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
     private void updateGameState() {
         player.update();
+
+        // Handle continuous firing
+        if (isFiring) {
+            Point mouse = getMousePosition();
+            if (mouse != null) {
+                double angle = Math.atan2(mouse.y - player.getY(), mouse.x - player.getX());
+                bullets.addAll(player.shoot(angle));
+            }
+        }
 
         // Update and remove out-of-bounds bullets
         Iterator<Bullet> bulletIt = bullets.iterator();
@@ -143,60 +156,86 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         switch (e.getKeyCode()) {
             case KeyEvent.VK_W:
             case KeyEvent.VK_UP:
-                player.setDY(-15);
+                upPressed = true;
                 break;
             case KeyEvent.VK_S:
             case KeyEvent.VK_DOWN:
-                player.setDY(15);
+                downPressed = true;
                 break;
             case KeyEvent.VK_A:
             case KeyEvent.VK_LEFT:
-                player.setDX(-15);
+                leftPressed = true;
                 break;
             case KeyEvent.VK_D:
             case KeyEvent.VK_RIGHT:
-                player.setDX(15);
+                rightPressed = true;
                 break;
             case KeyEvent.VK_1:
                 player.switchWeapon(0);
-                break; // Basic gun
+                break;
             case KeyEvent.VK_2:
                 player.switchWeapon(1);
-                break; // Shotgun
+                break;
             case KeyEvent.VK_3:
                 player.switchWeapon(2);
-                break; // Rapid fire
+                break;
             case KeyEvent.VK_SPACE:
                 Point mouse = getMousePosition();
+                isFiring = true;
                 if (mouse != null) {
-                    double angle = Math.atan2(mouse.y - player.getY(),mouse.x - player.getX());
-                    
+                    double angle = Math.atan2(mouse.y - player.getY(), mouse.x - player.getX());
                     bullets.addAll(player.shoot(angle));
-                    
                 }
                 break;
         }
+        updatePlayerVelocity();
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
         switch (e.getKeyCode()) {
             case KeyEvent.VK_W:
-            case KeyEvent.VK_S:
             case KeyEvent.VK_UP:
+                upPressed = false;
+                break;
+            case KeyEvent.VK_S:
             case KeyEvent.VK_DOWN:
-                player.setDY(0);
+                downPressed = false;
                 break;
             case KeyEvent.VK_A:
-            case KeyEvent.VK_D:
             case KeyEvent.VK_LEFT:
+                leftPressed = false;
+                break;
+            case KeyEvent.VK_D:
             case KeyEvent.VK_RIGHT:
-                player.setDX(0);
+                rightPressed = false;
+                break;
+            case KeyEvent.VK_SPACE:
+                isFiring = false;
                 break;
         }
+        updatePlayerVelocity();
+    }
+
+    private void updatePlayerVelocity() {
+        int dx = 0;
+        int dy = 0;
+
+        if (leftPressed)
+            dx -= 15;
+        if (rightPressed)
+            dx += 15;
+        if (upPressed)
+            dy -= 15;
+        if (downPressed)
+            dy += 15;
+
+        player.setDX(dx);
+        player.setDY(dy);
     }
 
     @Override
     public void keyTyped(KeyEvent e) {
+        // Not used but required by KeyListener interface
     }
 }

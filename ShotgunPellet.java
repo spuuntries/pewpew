@@ -9,6 +9,6 @@ import javax.imageio.ImageIO;
 
 public class ShotgunPellet extends Bullet {
     public ShotgunPellet(int x, int y, double angle) {
-        super(x, y, angle, 17, 5, 25, /*Color.ORANGE*/ "/resources/Gold_Bullet.png");
+        super(x, y, angle, 17, 5, 25, /* Color.ORANGE */ "resources/Gold_Bullet.png");
     }
 }
