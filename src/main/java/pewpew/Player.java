@@ -5,24 +5,78 @@ import java.util.ArrayList;
 
 public class Player extends GameObject {
 	private int dx, dy;
+	private int currentWeaponIndex = 0;
+
 	private static final int PLAYER_SIZE = 30;
+	private static final int MAX_WEAPONS = 2;
 	private static final int WIDTH = 1280;
 	private static final int HEIGHT = 720;
+
+	private ArrayList<Weapon> inventory;
 	private Weapon currentWeapon;
-	private ArrayList<Weapon> weapons;
 
 	public Player(int x, int y) {
 		super(x, y);
 		dx = dy = 0;
-		weapons = new ArrayList<>();
-		weapons.add(new BasicGun());
-		weapons.add(new Shotgun());
-		weapons.add(new RapidFire());
-		currentWeapon = weapons.get(0);
+		inventory = new ArrayList<>();
+		// Maybe start with just the basic gun
+		inventory.add(new BasicGun());
+		currentWeapon = inventory.get(0);
+	}
+
+	private int findEmptySlot() {
+		for (int i = 0; i < MAX_WEAPONS; i++) {
+			if (i >= inventory.size()) {
+				return i;
+			}
+		}
+		return -1; // No empty slots
+	}
+
+	public boolean hasWeaponType(Class<?> weaponType) {
+		for (Weapon weapon : inventory) {
+			if (weapon.getClass().equals(weaponType)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public Weapon pickupWeapon(Weapon newWeapon) {
+		int emptySlot = findEmptySlot();
+
+		if (emptySlot != -1) {
+			// Fill empty slot
+			inventory.add(newWeapon);
+			currentWeapon = newWeapon;
+			currentWeaponIndex = inventory.size() - 1;
+			return null;
+		} else {
+			// Swap weapons instead of replace
+			Weapon oldWeapon = inventory.get(currentWeaponIndex);
+			inventory.set(currentWeaponIndex, newWeapon);
+			currentWeapon = newWeapon;
+			return oldWeapon;
+		}
+	}
+
+	public void switchWeapon(int index) {
+		if (index >= 0 && index < inventory.size()) {
+			currentWeaponIndex = index;
+			currentWeapon = inventory.get(currentWeaponIndex);
+		}
+	}
+
+	public ArrayList<Weapon> getInventory() {
+		return inventory;
 	}
 
 	public Weapon getCurrentWeapon() {
 		return currentWeapon;
+	}
+
+	public int getCurrentWeaponIndex() {
+		return currentWeaponIndex;
 	}
 
 	public BufferedImage getCurrentWeaponSprite() {
@@ -34,12 +88,6 @@ public class Player extends GameObject {
 			return currentWeapon.shoot(gunTipX, gunTipY, angle);
 		}
 		return new ArrayList<>();
-	}
-
-	public void switchWeapon(int index) {
-		if (index >= 0 && index < weapons.size()) {
-			currentWeapon = weapons.get(index);
-		}
 	}
 
 	@Override
