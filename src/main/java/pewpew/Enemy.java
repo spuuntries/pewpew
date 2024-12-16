@@ -23,7 +23,6 @@ public class Enemy extends GameObject {
 
 	@Override
 	public void update() {
-		// Target player's collision center instead of sprite position
 		int targetX = player.getCollisionX() + Player.getCollisionWidth() / 2;
 		int targetY = player.getCollisionY() + Player.getCollisionHeight() / 2;
 		double angle = Math.atan2(targetY - (y + ENEMY_SIZE / 2), targetX - (x + ENEMY_SIZE / 2));
@@ -35,7 +34,6 @@ public class Enemy extends GameObject {
 		return ENEMY_SIZE;
 	}
 
-	// Add these for consistency
 	public int getCenterX() {
 		return x + ENEMY_SIZE / 2;
 	}

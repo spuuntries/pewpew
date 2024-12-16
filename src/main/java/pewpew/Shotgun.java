@@ -9,7 +9,7 @@ public class Shotgun extends Weapon {
 	private static final Random random = new Random();
 
 	public Shotgun() {
-		super(1, "/Shotgun.png", 56, 16);
+		super(1, "/Shotgun.png", 56, 24);
 	}
 
 	@Override
