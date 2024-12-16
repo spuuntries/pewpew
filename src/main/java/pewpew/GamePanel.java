@@ -265,11 +265,11 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		}
 
 		// Debugging tip calc
-		Point gunTip = calculateGunTip();
-		if (gunTip != null) {
-			g2d.setColor(Color.RED);
-			g2d.fillOval(gunTip.x - 2, gunTip.y - 2, 4, 4);
-		}
+//		Point gunTip = calculateGunTip();
+//		if (gunTip != null) {
+//			g2d.setColor(Color.RED);
+//			g2d.fillOval(gunTip.x - 2, gunTip.y - 2, 4, 4);
+//		}
 
 		// Update screen shake
 		if (screenShakeIntensity > 0) {
