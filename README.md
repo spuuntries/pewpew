@@ -1,10 +1,10 @@
 # **Final Project Object-Oriented Programming (N)**
 
-<div style="text-align: center; margin: 0 auto; width: fit-content;">
-  <img src="./assets/wmcb.webp" style="width: 25vw"><br>
+<p style="align: center;">
+  <img src="./assets/wmcb.webp" style="display: inline-block; width: 25vw"><br>
   <b style="font-size: 2.5vw">When Mother Nature Claps Back (WMNCB)</b>
-</div>
-
+</p>
+<br>
 
 | Name | Student ID |
 |--|--|
