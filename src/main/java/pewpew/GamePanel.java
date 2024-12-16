@@ -285,6 +285,94 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 		}
 	}
 
+	private void drawHealthBar(Graphics g) {
+		int barWidth = 200;
+		int barHeight = 20;
+		int x = currentWidth - barWidth - 10;
+		int y = 10;
+
+		// Draw background
+		g.setColor(Color.GRAY);
+		g.fillRect(x, y, barWidth, barHeight);
+
+		// Draw health
+		float healthPercent = (float) player.getHealth() / 100;
+		int healthWidth = (int) (barWidth * healthPercent);
+
+		// Change color based on health level
+		if (healthPercent > 0.6f) {
+			g.setColor(Color.GREEN);
+		} else if (healthPercent > 0.3f) {
+			g.setColor(Color.YELLOW);
+		} else {
+			g.setColor(Color.RED);
+		}
+		g.fillRect(x, y, healthWidth, barHeight);
+
+		// Draw border
+		g.setColor(Color.WHITE);
+		g.drawRect(x, y, barWidth, barHeight);
+
+		// Draw health text
+		String healthText = player.getHealth() + "/100";
+		g.setColor(Color.WHITE);
+		FontMetrics fm = g.getFontMetrics();
+		int textX = x + 5;
+		int textY = y + ((barHeight - fm.getHeight()) / 2) + fm.getAscent() - 2;
+		Font originalFont = g.getFont();
+		Font customFont = new Font("Arial", Font.BOLD | Font.ITALIC, 20);
+		g.setFont(customFont);
+		g.drawString(healthText, textX, textY);
+		g.setFont(originalFont);
+	}
+
+	private void drawInventoryUI(Graphics g) {
+		ArrayList<Weapon> inventory = player.getInventory();
+		int slotWidth = 64;
+		int slotHeight = 64;
+		int padding = 2; // Padding between slots
+		int startX = 10; // Starting X position
+		int startY = currentHeight - slotHeight - 10; // Position from bottom of screen
+
+		// Draw the inventory slots
+		for (int i = 0; i < inventory.size(); i++) {
+			int x = startX + (i * (slotWidth + padding));
+
+			// Draw slot background
+			g.setColor(
+					i == player.getCurrentWeaponIndex() ? new Color(255, 255, 0, 100) : new Color(128, 128, 128, 100));
+			g.fillRect(x, startY, slotWidth, slotHeight);
+
+			// Draw slot border
+			g.setColor(i == player.getCurrentWeaponIndex() ? Color.YELLOW : Color.WHITE);
+			g.drawRect(x, startY, slotWidth, slotHeight);
+
+			// Draw weapon sprite
+			Weapon weapon = inventory.get(i);
+			if (weapon != null && weapon.getSprite() != null) {
+				BufferedImage sprite = weapon.getSprite();
+
+				// Calculate scaling to fit weapon
+				double scale = Math.min((double) (slotWidth - 16) / sprite.getWidth(),
+						(double) (slotHeight - 16) / sprite.getHeight());
+
+				int scaledWidth = (int) (sprite.getWidth() * scale);
+				int scaledHeight = (int) (sprite.getHeight() * scale);
+
+				// Center the weapon in the slot
+				int weaponX = x + (slotWidth - scaledWidth) / 2;
+				int weaponY = startY + (slotHeight - scaledHeight) / 2;
+
+				g.drawImage(sprite, weaponX, weaponY, scaledWidth, scaledHeight, null);
+			}
+
+			// Draw slot number
+			g.setColor(Color.WHITE);
+			g.setFont(new Font("Arial", Font.BOLD, 16));
+			g.drawString(String.valueOf(i + 1), x + 5, startY + 20);
+		}
+	}
+
 	@Override
 	protected void paintComponent(Graphics g) {
 		super.paintComponent(g);
@@ -475,94 +563,6 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 		g2d.setTransform(originalTransform);
 	}
 
-	private void drawHealthBar(Graphics g) {
-		int barWidth = 200;
-		int barHeight = 20;
-		int x = currentWidth - barWidth - 10;
-		int y = 10;
-
-		// Draw background
-		g.setColor(Color.GRAY);
-		g.fillRect(x, y, barWidth, barHeight);
-
-		// Draw health
-		float healthPercent = (float) player.getHealth() / 100;
-		int healthWidth = (int) (barWidth * healthPercent);
-
-		// Change color based on health level
-		if (healthPercent > 0.6f) {
-			g.setColor(Color.GREEN);
-		} else if (healthPercent > 0.3f) {
-			g.setColor(Color.YELLOW);
-		} else {
-			g.setColor(Color.RED);
-		}
-		g.fillRect(x, y, healthWidth, barHeight);
-
-		// Draw border
-		g.setColor(Color.WHITE);
-		g.drawRect(x, y, barWidth, barHeight);
-
-		// Draw health text
-		String healthText = player.getHealth() + "/100";
-		g.setColor(Color.WHITE);
-		FontMetrics fm = g.getFontMetrics();
-		int textX = x + 5;
-		int textY = y + ((barHeight - fm.getHeight()) / 2) + fm.getAscent() - 2;
-		Font originalFont = g.getFont();
-		Font customFont = new Font("Arial", Font.BOLD | Font.ITALIC, 20);
-		g.setFont(customFont);
-		g.drawString(healthText, textX, textY);
-		g.setFont(originalFont);
-	}
-
-	private void drawInventoryUI(Graphics g) {
-		ArrayList<Weapon> inventory = player.getInventory();
-		int slotWidth = 64;
-		int slotHeight = 64;
-		int padding = 2; // Padding between slots
-		int startX = 10; // Starting X position
-		int startY = currentHeight - slotHeight - 10; // Position from bottom of screen
-
-		// Draw the inventory slots
-		for (int i = 0; i < inventory.size(); i++) {
-			int x = startX + (i * (slotWidth + padding));
-
-			// Draw slot background
-			g.setColor(
-					i == player.getCurrentWeaponIndex() ? new Color(255, 255, 0, 100) : new Color(128, 128, 128, 100));
-			g.fillRect(x, startY, slotWidth, slotHeight);
-
-			// Draw slot border
-			g.setColor(i == player.getCurrentWeaponIndex() ? Color.YELLOW : Color.WHITE);
-			g.drawRect(x, startY, slotWidth, slotHeight);
-
-			// Draw weapon sprite
-			Weapon weapon = inventory.get(i);
-			if (weapon != null && weapon.getSprite() != null) {
-				BufferedImage sprite = weapon.getSprite();
-
-				// Calculate scaling to fit weapon
-				double scale = Math.min((double) (slotWidth - 16) / sprite.getWidth(),
-						(double) (slotHeight - 16) / sprite.getHeight());
-
-				int scaledWidth = (int) (sprite.getWidth() * scale);
-				int scaledHeight = (int) (sprite.getHeight() * scale);
-
-				// Center the weapon in the slot
-				int weaponX = x + (slotWidth - scaledWidth) / 2;
-				int weaponY = startY + (slotHeight - scaledHeight) / 2;
-
-				g.drawImage(sprite, weaponX, weaponY, scaledWidth, scaledHeight, null);
-			}
-
-			// Draw slot number
-			g.setColor(Color.WHITE);
-			g.setFont(new Font("Arial", Font.BOLD, 16));
-			g.drawString(String.valueOf(i + 1), x + 5, startY + 20);
-		}
-	}
-
 	private void triggerScreenShake(int intensity) {
 		screenShakeIntensity = intensity;
 	}
@@ -608,7 +608,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 
 			double angle = calculateAimAngle();
 
-			int gunLength = 20; // Start with a small value and adjust
+			int gunLength = 20; // TODO: Might need to adjust
 
 			int tipX = centerX + (int) (Math.cos(angle) * gunLength);
 			int tipY = centerY + (int) (Math.sin(angle) * gunLength);
@@ -636,7 +636,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 		player.update();
 
 		for (WeaponPickup pickup : weaponPickups) {
-			pickup.update(); // Add this line to update all pickups
+			pickup.update();
 		}
 
 		// Handle continuous firing
@@ -732,7 +732,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 				criticalPulse = 0;
 			}
 
-			// Calculate pulse intensity (creates a smooth sine wave)
+			// Calculate pulse intensity
 			criticalEffect = (float) (0.75f + 0.2f * Math.sin(criticalPulse));
 		} else {
 			criticalEffect = 0;
@@ -795,15 +795,16 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 		repaint();
 	}
 
-	private void restartGame() {
-		// Stop the timer first
+	private void resetGameState() {
 		timer.stop();
 
 		// Clear all game objects
-		player = new Player(currentWidth / 2, currentHeight / 2);
+		player = null;
 		enemies = new ArrayList<>();
 		bullets = new ArrayList<>();
 		weaponPickups = new ArrayList<>();
+		healthPickups = new ArrayList<>();
+		objectivePickups = new ArrayList<>();
 		score = 0;
 
 		// Reset all game states
@@ -817,27 +818,46 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 		isWeaponSwitching = false;
 		weaponSwitchScale = 1.0f;
 		screenShakeIntensity = 0;
+		damageEffect = 0.0f;
+		criticalPulse = 0.0f;
+		criticalEffect = 0.0f;
+	}
 
-		// Start the timer after everything is reset
+	private void restartGame() {
+		resetGameState();
+
+		player = new Player(currentWidth / 2, currentHeight / 2);
+		currentState = GameState.PLAYING;
+
 		timer.start();
 	}
 
 	private void gameOver() {
 		timer.stop();
 
-		// Show dialog after timer is stopped
-		int choice = JOptionPane.showOptionDialog(this, "Game Over! Score: " + score + "\nWould you like to retry?",
-				"Game Over", JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE, null,
-				new String[] { "Retry", "Exit" }, "Retry");
+		String message = String.format("Game Over!\nFinal Score: %d\nWhat would you like to do?", score);
 
-		if (choice == JOptionPane.YES_OPTION) {
-			// Make sure we're in a safe state before restarting
-			SwingUtilities.invokeLater(() -> {
+		// Show dialog with three options
+		Object[] options = { "Return to Menu", "Play Again", "Exit" };
+		int choice = JOptionPane.showOptionDialog(this, message, "Game Over", JOptionPane.YES_NO_CANCEL_OPTION,
+				JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
+
+		SwingUtilities.invokeLater(() -> {
+			switch (choice) {
+			case 0: // Return to Menu
+				resetGameState();
+				currentState = GameState.MENU;
+				repaint();
+				break;
+			case 1: // Play Again
 				restartGame();
-			});
-		} else {
-			System.exit(0);
-		}
+				break;
+			case 2: // Exit
+			case JOptionPane.CLOSED_OPTION: // If they click the X
+				System.exit(0);
+				break;
+			}
+		});
 	}
 
 	@Override

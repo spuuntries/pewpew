@@ -12,7 +12,7 @@
 | Shalahuddin Ahmad Cahyoga | 5054231014 |
 
 
-To visualize the class diagram of our project, here's an ELK-rendered mermaid graph of our class diagram:  
+To visualize the class diagram of our project, here's an ELK-rendered mermaid graph of our class diagram (some details like insignificant flags are ofc omitted for readability and brevity):  
 
 ![Class Diagram Rendered](./assets/rendered.png)
 

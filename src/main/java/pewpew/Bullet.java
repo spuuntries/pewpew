@@ -64,7 +64,7 @@ public abstract class Bullet extends GameObject {
 
 			// g2d.dispose();
 		} else {
-			g.setColor(color); // Optional color if no sprite
+			g.setColor(color); // Fallback color if no sprite
 			g.fillOval((int) x - size / 2, (int) y - size / 2, size, size);
 		}
 	}
