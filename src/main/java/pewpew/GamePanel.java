@@ -11,6 +11,7 @@ import java.awt.Graphics2D;
 import java.awt.Paint;
 import java.awt.Point;
 import java.awt.RadialGradientPaint;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -73,6 +74,12 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 
 	private double lastValidAngle = 0;
 
+	// Game state vars
+	private GameState currentState = GameState.MENU;
+	private BufferedImage menuBackgroundImage;
+	private Rectangle playButton;
+	private Rectangle exitButton;
+
 	// Shake effect vars
 	private int screenShakeX = 0;
 	private int screenShakeY = 0;
@@ -101,7 +108,60 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 			}
 		});
 
-		initializeGame();
+		int buttonWidth = 200;
+		int buttonHeight = 50;
+		playButton = new Rectangle(BASE_currentWidth / 2 - buttonWidth / 2, BASE_currentHeight / 2 - buttonHeight,
+				buttonWidth, buttonHeight);
+		exitButton = new Rectangle(BASE_currentWidth / 2 - buttonWidth / 2, BASE_currentHeight / 2 + buttonHeight,
+				buttonWidth, buttonHeight);
+
+		addComponentListener(new java.awt.event.ComponentAdapter() {
+			public void componentResized(java.awt.event.ComponentEvent e) {
+				handleResize();
+			}
+		});
+	}
+
+	private void drawMenu(Graphics2D g2d) {
+		// Draw menu background
+		if (menuBackgroundImage != null) {
+			g2d.drawImage(menuBackgroundImage, 0, 0, BASE_currentWidth, BASE_currentHeight, null);
+		} else {
+			g2d.setColor(new Color(0, 0, 0, 150));
+			g2d.fillRect(0, 0, BASE_currentWidth, BASE_currentHeight);
+		}
+
+		// Draw game title
+		g2d.setFont(new Font("Arial", Font.BOLD, 72));
+		g2d.setColor(Color.WHITE);
+		String title = "WMNCB";
+		FontMetrics fm = g2d.getFontMetrics();
+		int titleX = BASE_currentWidth / 2 - fm.stringWidth(title) / 2;
+		g2d.drawString(title, titleX, BASE_currentHeight / 3);
+
+		// Draw buttons
+		g2d.setFont(new Font("Arial", Font.BOLD, 32));
+
+		// Play button
+		g2d.setColor(Color.GREEN);
+		g2d.fill(playButton);
+		g2d.setColor(Color.WHITE);
+		g2d.draw(playButton);
+		String playText = "PLAY";
+		fm = g2d.getFontMetrics();
+		int textX = playButton.x + (playButton.width - fm.stringWidth(playText)) / 2;
+		int textY = playButton.y + (playButton.height + fm.getAscent()) / 2 - 5;
+		g2d.drawString(playText, textX, textY);
+
+		// Exit button
+		g2d.setColor(Color.RED);
+		g2d.fill(exitButton);
+		g2d.setColor(Color.WHITE);
+		g2d.draw(exitButton);
+		String exitText = "EXIT";
+		textX = exitButton.x + (exitButton.width - fm.stringWidth(exitText)) / 2;
+		textY = exitButton.y + (exitButton.height + fm.getAscent()) / 2 - 5;
+		g2d.drawString(exitText, textX, textY);
 	}
 
 	private void initializeGame() {
@@ -241,18 +301,157 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 			g.drawImage(backgroundImage, 0, 0, BASE_currentWidth, BASE_currentHeight, null);
 		}
 
-		// Draw pause overlay if paused
-		if (isPaused) {
-			// Save current transform
-			AffineTransform pauseTransform = g2d.getTransform();
-			// Reset to original transform for overlay
+		switch (currentState) {
+		case MENU:
+			drawMenu(g2d);
+			break;
+		case PLAYING:
+			// Shake
+			g2d.translate(screenShakeX, screenShakeY);
+
+			// Draw player
+//    		g.setColor(Color.RED);
+//    		g.fillRect(player.getX(), player.getY(), Player.getSize(), Player.getSize());
+			player.render((Graphics2D) g);
+
+			// Draw current weapon sprite
+			Point mouse = getScaledMousePosition();
+			if (mouse != null) {
+				int centerX = player.getCollisionX() + Player.getCollisionWidth() / 2;
+				int centerY = player.getCollisionY() + Player.getCollisionHeight() / 2;
+
+				double angle = calculateAimAngle();
+
+				// Save the current transform
+				AffineTransform old = g2d.getTransform();
+
+				// Translate to player center
+				g2d.translate(centerX, centerY);
+				// player.updateGunAngle(angle);
+
+				// Determine if we need to flip the sprite
+				boolean facingLeft = Math.abs(angle) > Math.PI / 2;
+
+				// Rotate based on mouse position
+				if (facingLeft) {
+					// If facing left, flip vertically and adjust angle
+					g2d.scale(1, -1);
+					g2d.rotate(-angle);
+				} else {
+					g2d.rotate(angle);
+				}
+
+				// Draw the current weapon's sprite with scaling
+				BufferedImage weaponSprite = player.getCurrentWeaponSprite();
+				if (weaponSprite != null) {
+					double scaleX = (double) player.getCurrentWeapon().getDisplayWidth() / weaponSprite.getWidth();
+					double scaleY = (double) player.getCurrentWeapon().getDisplayHeight() / weaponSprite.getHeight();
+
+					// Apply weapon switch animation scale only to the weapon
+					if (isWeaponSwitching) {
+						scaleX *= weaponSwitchScale;
+						scaleY *= weaponSwitchScale;
+						weaponSwitchScale += 0.1f;
+						if (weaponSwitchScale >= 1.2f) {
+							isWeaponSwitching = false;
+							weaponSwitchScale = 1.0f;
+						}
+					}
+
+					g2d.scale(scaleX, scaleY);
+
+					g2d.drawImage(weaponSprite, 0, -weaponSprite.getHeight() / 2, weaponSprite.getWidth(),
+							weaponSprite.getHeight(), null);
+				}
+
+				// Restore the original transform
+				g2d.setTransform(old);
+			}
+
+			// Draw pickups
+			for (WeaponPickup pickup : weaponPickups) {
+				pickup.render(g);
+			}
+			for (HealthPickup pickup : healthPickups) {
+				pickup.render(g);
+			}
+			for (ObjectivePickup pickup : objectivePickups) {
+				pickup.render(g);
+			}
+
+			// Draw enemies
+			g.setColor(Color.BLACK);
+			for (Enemy enemy : enemies) {
+				g.fillOval(enemy.getX(), enemy.getY(), Enemy.getSize(), Enemy.getSize());
+			}
+
+			// Draw bullets with their specific colors
+			for (Bullet bullet : bullets) {
+				bullet.render(g);
+			}
+
+			// Debugging tip calc
+//    		Point gunTip = calculateGunTip();
+//    		if (gunTip != null) {
+//    			g2d.setColor(Color.RED);
+//    			g2d.fillOval(gunTip.x - 2, gunTip.y - 2, 4, 4);
+//    		}
+
+			// Update screen shake
+			if (screenShakeIntensity > 0) {
+				screenShakeX = screenShakeRandom.nextInt(screenShakeIntensity * 2) - screenShakeIntensity;
+				screenShakeY = screenShakeRandom.nextInt(screenShakeIntensity * 2) - screenShakeIntensity;
+				screenShakeIntensity--;
+			} else {
+				screenShakeX = 0;
+				screenShakeY = 0;
+			}
+
+			// Apply screen shake
+			g2d.setTransform(originalTransform);
+			drawDamageEffect(g2d);
+
+			// Draw score and current weapon
+			g.setColor(Color.WHITE);
+			Font customFont = new Font("Arial", Font.BOLD, 30);
+			g.setFont(customFont);
+			g.drawString("Score: " + score, 10, 30);
+
+			drawHealthBar(g);
+			drawInventoryUI(g);
+
+			g2d.setTransform(originalTransform);
+			break;
+		case PAUSED:
+			player.render((Graphics2D) g);
+
+			for (WeaponPickup pickup : weaponPickups) {
+				pickup.render(g);
+			}
+			for (HealthPickup pickup : healthPickups) {
+				pickup.render(g);
+			}
+			for (ObjectivePickup pickup : objectivePickups) {
+				pickup.render(g);
+			}
+
+			g.setColor(Color.BLACK);
+			for (Enemy enemy : enemies) {
+				g.fillOval(enemy.getX(), enemy.getY(), Enemy.getSize(), Enemy.getSize());
+			}
+
+			for (Bullet bullet : bullets) {
+				bullet.render(g);
+			}
+
 			g2d.setTransform(originalTransform);
 
-			// Semi-transparent black overlay
+			// Draw UI elements
+			drawHealthBar(g);
+			drawInventoryUI(g);
+
 			g2d.setColor(new Color(0, 0, 0, 150));
 			g2d.fillRect(0, 0, getWidth(), getHeight());
-
-			// Scale the text appropriately
 			g2d.scale(SCALE_FACTOR, SCALE_FACTOR);
 
 			// Draw pause text
@@ -266,126 +465,12 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 			// Draw instructions
 			g2d.setFont(new Font("Arial", Font.PLAIN, 20));
 			String instructionText = "Press ESC to resume";
-			textWidth = fm.stringWidth(instructionText);
+			FontMetrics fm2 = g2d.getFontMetrics();
+			textWidth = fm2.stringWidth(instructionText);
 			g2d.drawString(instructionText, BASE_currentWidth / 2 - textWidth / 2, BASE_currentHeight / 2 + 40);
-
-			// Restore transform
-			g2d.setTransform(pauseTransform);
+			g2d.setTransform(originalTransform);
+			break;
 		}
-
-		// Shake
-		g2d.translate(screenShakeX, screenShakeY);
-
-		// Draw player
-//		g.setColor(Color.RED);
-//		g.fillRect(player.getX(), player.getY(), Player.getSize(), Player.getSize());
-		player.render((Graphics2D) g);
-
-		// Draw current weapon sprite
-		Point mouse = getScaledMousePosition();
-		if (mouse != null) {
-			int centerX = player.getCollisionX() + Player.getCollisionWidth() / 2;
-			int centerY = player.getCollisionY() + Player.getCollisionHeight() / 2;
-
-			double angle = calculateAimAngle();
-
-			// Save the current transform
-			AffineTransform old = g2d.getTransform();
-
-			// Translate to player center
-			g2d.translate(centerX, centerY);
-			// player.updateGunAngle(angle);
-
-			// Determine if we need to flip the sprite
-			boolean facingLeft = Math.abs(angle) > Math.PI / 2;
-
-			// Rotate based on mouse position
-			if (facingLeft) {
-				// If facing left, flip vertically and adjust angle
-				g2d.scale(1, -1);
-				g2d.rotate(-angle);
-			} else {
-				g2d.rotate(angle);
-			}
-
-			// Draw the current weapon's sprite with scaling
-			BufferedImage weaponSprite = player.getCurrentWeaponSprite();
-			if (weaponSprite != null) {
-				double scaleX = (double) player.getCurrentWeapon().getDisplayWidth() / weaponSprite.getWidth();
-				double scaleY = (double) player.getCurrentWeapon().getDisplayHeight() / weaponSprite.getHeight();
-
-				// Apply weapon switch animation scale only to the weapon
-				if (isWeaponSwitching) {
-					scaleX *= weaponSwitchScale;
-					scaleY *= weaponSwitchScale;
-					weaponSwitchScale += 0.1f;
-					if (weaponSwitchScale >= 1.2f) {
-						isWeaponSwitching = false;
-						weaponSwitchScale = 1.0f;
-					}
-				}
-
-				g2d.scale(scaleX, scaleY);
-
-				g2d.drawImage(weaponSprite, 0, -weaponSprite.getHeight() / 2, weaponSprite.getWidth(),
-						weaponSprite.getHeight(), null);
-			}
-
-			// Restore the original transform
-			g2d.setTransform(old);
-		}
-
-		// Draw pickups
-		for (WeaponPickup pickup : weaponPickups) {
-			pickup.render(g);
-		}
-		for (HealthPickup pickup : healthPickups) {
-			pickup.render(g);
-		}
-		for (ObjectivePickup pickup : objectivePickups) {
-			pickup.render(g);
-		}
-
-		// Draw enemies
-		g.setColor(Color.BLACK);
-		for (Enemy enemy : enemies) {
-			g.fillOval(enemy.getX(), enemy.getY(), Enemy.getSize(), Enemy.getSize());
-		}
-
-		// Draw bullets with their specific colors
-		for (Bullet bullet : bullets) {
-			bullet.render(g);
-		}
-
-		// Debugging tip calc
-//		Point gunTip = calculateGunTip();
-//		if (gunTip != null) {
-//			g2d.setColor(Color.RED);
-//			g2d.fillOval(gunTip.x - 2, gunTip.y - 2, 4, 4);
-//		}
-
-		// Update screen shake
-		if (screenShakeIntensity > 0) {
-			screenShakeX = screenShakeRandom.nextInt(screenShakeIntensity * 2) - screenShakeIntensity;
-			screenShakeY = screenShakeRandom.nextInt(screenShakeIntensity * 2) - screenShakeIntensity;
-			screenShakeIntensity--;
-		} else {
-			screenShakeX = 0;
-			screenShakeY = 0;
-		}
-
-		// Apply screen shake
-		g2d.setTransform(originalTransform);
-		drawDamageEffect(g2d);
-
-		// Draw score and current weapon
-		g.setColor(Color.WHITE);
-		Font customFont = new Font("Arial", Font.BOLD, 30);
-		g.setFont(customFont);
-		g.drawString("Score: " + score, 10, 30);
-
-		drawHealthBar(g);
-		drawInventoryUI(g);
 
 		g2d.setTransform(originalTransform);
 	}
@@ -699,13 +784,15 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 	private void togglePause() {
 		isPaused = !isPaused;
 		if (isPaused) {
+			currentState = GameState.PAUSED;
 			isMouseFiring = false;
 			isSpaceFiring = false;
 			timer.stop();
 		} else {
+			currentState = GameState.PLAYING;
 			timer.start();
 		}
-		repaint(); // Force a repaint to show/hide pause overlay
+		repaint();
 	}
 
 	private void restartGame() {
@@ -755,12 +842,13 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 
 	@Override
 	public void keyPressed(KeyEvent e) {
-		if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+		if ((currentState == GameState.PLAYING || currentState == GameState.PAUSED)
+				&& e.getKeyCode() == KeyEvent.VK_ESCAPE) {
 			togglePause();
 			return;
 		}
 
-		if (!isPaused) {
+		if (currentState == GameState.PLAYING && !isPaused) {
 			switch (e.getKeyCode()) {
 			case KeyEvent.VK_W:
 			case KeyEvent.VK_UP:
@@ -804,7 +892,18 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 
 	@Override
 	public void mousePressed(MouseEvent e) {
-		if (!isPaused) {
+		Point scaledPoint = new Point(
+				(int) ((e.getX() - (currentWidth - BASE_currentWidth * SCALE_FACTOR) / 2) / SCALE_FACTOR),
+				(int) ((e.getY() - (currentHeight - BASE_currentHeight * SCALE_FACTOR) / 2) / SCALE_FACTOR));
+
+		if (currentState == GameState.MENU) {
+			if (playButton.contains(scaledPoint)) {
+				currentState = GameState.PLAYING;
+				initializeGame();
+			} else if (exitButton.contains(scaledPoint)) {
+				System.exit(0);
+			}
+		} else if (currentState == GameState.PLAYING && !isPaused) {
 			if (e.getButton() == MouseEvent.BUTTON1) {
 				isMouseFiring = true;
 				Point gunTip = calculateGunTip();
@@ -829,28 +928,30 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener, Mo
 
 	@Override
 	public void keyReleased(KeyEvent e) {
-		switch (e.getKeyCode()) {
-		case KeyEvent.VK_W:
-		case KeyEvent.VK_UP:
-			upPressed = false;
-			break;
-		case KeyEvent.VK_S:
-		case KeyEvent.VK_DOWN:
-			downPressed = false;
-			break;
-		case KeyEvent.VK_A:
-		case KeyEvent.VK_LEFT:
-			leftPressed = false;
-			break;
-		case KeyEvent.VK_D:
-		case KeyEvent.VK_RIGHT:
-			rightPressed = false;
-			break;
-		case KeyEvent.VK_SPACE:
-			isSpaceFiring = false;
-			break;
+		if (currentState == GameState.PLAYING) {
+			switch (e.getKeyCode()) {
+			case KeyEvent.VK_W:
+			case KeyEvent.VK_UP:
+				upPressed = false;
+				break;
+			case KeyEvent.VK_S:
+			case KeyEvent.VK_DOWN:
+				downPressed = false;
+				break;
+			case KeyEvent.VK_A:
+			case KeyEvent.VK_LEFT:
+				leftPressed = false;
+				break;
+			case KeyEvent.VK_D:
+			case KeyEvent.VK_RIGHT:
+				rightPressed = false;
+				break;
+			case KeyEvent.VK_SPACE:
+				isSpaceFiring = false;
+				break;
+			}
+			updatePlayerVelocity();
 		}
-		updatePlayerVelocity();
 
 	}
 
