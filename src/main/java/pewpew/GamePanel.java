@@ -2,6 +2,7 @@ package pewpew;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
@@ -29,6 +30,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 	private Timer timer;
 	private Random random;
 	private int score;
+	private boolean isPaused = false;
 
 	// Movement control variables
 	private boolean leftPressed = false;
@@ -39,7 +41,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
 	private float weaponSwitchScale = 1.0f;
 	private boolean isWeaponSwitching = false;
-
+	
 	public GamePanel() {
 		setPreferredSize(new Dimension(WIDTH, HEIGHT));
 		setBackground(Color.GRAY);
@@ -136,7 +138,9 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
 		// Draw score and current weapon
 		g.setColor(Color.WHITE);
-		g.drawString("Score: " + score, 10, 20);
+		Font customFont = new Font("Arial", Font.BOLD, 30); // Font size 30, bold style
+		g.setFont(customFont);
+		g.drawString("Score: " + score, 10, 30);
 	}
 
 	private Point calculateGunTip() {
@@ -229,53 +233,91 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		}
 	}
 
+	private void restartGame() {
+	    player = new Player(WIDTH / 2, HEIGHT / 2);
+	    enemies.clear();
+	    bullets.clear();
+	    score = 0;
+	    timer.start();
+	    
+	    leftPressed = false;
+	    rightPressed = false;
+	    upPressed = false;
+	    downPressed = false;
+	    isFiring = false;
+	}
+	
 	private void gameOver() {
 		timer.stop();
-		JOptionPane.showMessageDialog(this, "Game Over! Score: " + score);
-		System.exit(0);
+		int choice = JOptionPane.showOptionDialog(this, 
+		        "Game Over! Score: " + score + "\nWould you like to retry?", 
+		        "Game Over", 
+		        JOptionPane.YES_NO_OPTION, 
+		        JOptionPane.INFORMATION_MESSAGE, 
+		        null, 
+		        new String[]{"Retry", "Exit"}, 
+		        "Retry");
+
+		    if (choice == JOptionPane.YES_OPTION) {
+		        restartGame();
+		    } else {
+		        System.exit(0);
+		    }
 	}
 
 	@Override
 	public void keyPressed(KeyEvent e) {
-		switch (e.getKeyCode()) {
-		case KeyEvent.VK_W:
-		case KeyEvent.VK_UP:
-			upPressed = true;
-			break;
-		case KeyEvent.VK_S:
-		case KeyEvent.VK_DOWN:
-			downPressed = true;
-			break;
-		case KeyEvent.VK_A:
-		case KeyEvent.VK_LEFT:
-			leftPressed = true;
-			break;
-		case KeyEvent.VK_D:
-		case KeyEvent.VK_RIGHT:
-			rightPressed = true;
-			break;
-		case KeyEvent.VK_1:
-			switchWeapon(0);
-			break;
-		case KeyEvent.VK_2:
-			switchWeapon(1);
-			break;
-		case KeyEvent.VK_3:
-			switchWeapon(2);
-			break;
-		case KeyEvent.VK_SPACE:
-			Point mouse = getMousePosition();
-			Point gunTip = calculateGunTip();
-			isFiring = true;
-			if (mouse != null && gunTip != null) {
-				double angle = Math.atan2(mouse.y - gunTip.y, mouse.x - gunTip.x);
-				bullets.addAll(player.shoot(gunTip.x, gunTip.y, angle));
-			}
-			break;
+	    if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+	        isPaused = !isPaused;  
+	        if (isPaused) {
+	            timer.stop();  
+	        } else {
+	            timer.start(); 
+	        }
+	        return;  
+	    }
 
-		}
-		updatePlayerVelocity();
+	    if (!isPaused) {
+	        switch (e.getKeyCode()) {
+	            case KeyEvent.VK_W:
+	            case KeyEvent.VK_UP:
+	                upPressed = true;
+	                break;
+	            case KeyEvent.VK_S:
+	            case KeyEvent.VK_DOWN:
+	                downPressed = true;
+	                break;
+	            case KeyEvent.VK_A:
+	            case KeyEvent.VK_LEFT:
+	                leftPressed = true;
+	                break;
+	            case KeyEvent.VK_D:
+	            case KeyEvent.VK_RIGHT:
+	                rightPressed = true;
+	                break;
+	            case KeyEvent.VK_1:
+	                switchWeapon(0);
+	                break;
+	            case KeyEvent.VK_2:
+	                switchWeapon(1);
+	                break;
+	            case KeyEvent.VK_3:
+	                switchWeapon(2);
+	                break;
+	            case KeyEvent.VK_SPACE:
+	                Point mouse = getMousePosition();
+	                Point gunTip = calculateGunTip();
+	                isFiring = true;
+	                if (mouse != null && gunTip != null) {
+	                    double angle = Math.atan2(mouse.y - gunTip.y, mouse.x - gunTip.x);
+	                    bullets.addAll(player.shoot(gunTip.x, gunTip.y, angle));
+	                }
+	                break;
+	        }
+	        updatePlayerVelocity();
+	    }
 	}
+
 
 	@Override
 	public void keyReleased(KeyEvent e) {
