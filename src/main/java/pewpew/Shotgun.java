@@ -4,12 +4,12 @@ import java.util.ArrayList;
 import java.util.Random;
 
 public class Shotgun extends Weapon {
-	private static final int PELLET_COUNT = 5;
+	private static final int PELLET_COUNT = 3;
 	private static final double SPREAD = Math.PI / 8; // 22.5 degrees
 	private static final Random random = new Random();
 
 	public Shotgun() {
-		super(2, "/Shotgun.png", 56, 16); // 2 shots per second
+		super(1, "/Shotgun.png", 56, 16);
 	}
 
 	@Override

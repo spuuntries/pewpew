@@ -115,18 +115,14 @@ public class WeaponPickup extends GameObject {
 	}
 
 	public boolean collidesWith(Player player) {
-		// Use the larger of width or height for circular collision
 		float pickupRadius = Math.max(weapon.getDisplayWidth(), weapon.getDisplayHeight()) / 2;
 		float playerRadius = Player.getSize() / 2;
 
-		// Get centers
 		float pickupCenterX = x;
-		float pickupCenterY = y + floatOffset; // Include the float offset for accurate collision
-		float playerCenterX = player.getX() + playerRadius;
-		float playerCenterY = player.getY() + playerRadius;
+		float pickupCenterY = y + floatOffset;
+		float playerCenterX = player.getCollisionX() + playerRadius;
+		float playerCenterY = player.getCollisionY() + playerRadius;
 
-		// Add a bit of padding to make pickup easier (multiply by 1.5 or whatever feels
-		// good)
 		float collisionDistance = (pickupRadius + playerRadius) * 1.5f;
 
 		return Math.hypot(pickupCenterX - playerCenterX, pickupCenterY - playerCenterY) < collisionDistance;

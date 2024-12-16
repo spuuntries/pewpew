@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 public class BasicGun extends Weapon {
 	public BasicGun() {
-		super(1, "/Pistol.png", 32, 16); // 5 shots per second
+		super(2, "/Pistol.png", 32, 16);
 	}
 
 	@Override
