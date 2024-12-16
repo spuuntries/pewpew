@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Random;
 
+import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -37,6 +38,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 	private Random random;
 	private int score;
 	private boolean isPaused = false;
+	private BufferedImage backgroundImage;
 
 	// Movement control variables
 	private boolean leftPressed = false;
@@ -71,6 +73,12 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		setBackground(Color.GRAY);
 		setFocusable(true);
 		addKeyListener(this);
+
+		try {
+			backgroundImage = ImageIO.read(getClass().getResource("/Background_Lab.png"));
+		} catch (Exception e) {
+		    e.printStackTrace();
+		}
 
 		initializeGame();
 	}
@@ -162,6 +170,11 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 	protected void paintComponent(Graphics g) {
 		super.paintComponent(g);
 		Graphics2D g2d = (Graphics2D) g;
+
+		// Draw background
+		if (backgroundImage != null) {
+	        g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), null);
+	    }
 
 		// Draw pause overlay if paused
 		if (isPaused) {
