@@ -15,6 +15,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -27,65 +29,86 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
-public class GamePanel extends JPanel implements ActionListener, KeyListener {
-	private static final int WIDTH = 1280;
-	private static final int HEIGHT = 720;
+public class GamePanel extends JPanel implements ActionListener, KeyListener, MouseListener {
+	// Drawing shiz
+	private BufferedImage backgroundImage;
+	private static float SCALE_FACTOR = 1.0f;
+	private static int BASE_currentWidth = 1280;
+	private static int BASE_currentHeight = 720;
+	private int currentWidth = BASE_currentWidth;
+	private int currentHeight = BASE_currentHeight;
 
+	// Entities
 	private Player player;
 	private ArrayList<Enemy> enemies;
 	private ArrayList<Bullet> bullets;
+	private ArrayList<HealthPickup> healthPickups;
+	private ArrayList<ObjectivePickup> objectivePickups;
+	private ArrayList<WeaponPickup> weaponPickups;
+
 	private Timer timer;
 	private Random random;
 	private int score;
-	private boolean isPaused = false;
-	private BufferedImage backgroundImage;
 
-	// Movement control variables
-	private boolean leftPressed = false;
-	private boolean rightPressed = false;
-	private boolean upPressed = false;
-	private boolean downPressed = false;
-	private boolean isFiring = false;
-
-	private float weaponSwitchScale = 1.0f;
+	// Flags
 	private boolean isWeaponSwitching = false;
+	private boolean isSpaceFiring = false;
+	private boolean isMouseFiring = false;
+	private boolean rightPressed = false;
+	private boolean downPressed = false;
+	private boolean leftPressed = false;
+	private boolean upPressed = false;
+	private boolean isPaused = false;
 
+	// Weapon switch const
+	private float weaponSwitchScale = 1.0f;
+
+	// Damage effect consts
 	private float damageEffect = 0.0f;
-	private float criticalEffect = 0.0f;
 	private float criticalPulse = 0.0f;
+	private float criticalEffect = 0.0f;
 	private static final float DAMAGE_EFFECT_DECAY = 0.05f;
-	private static final float CRITICAL_HEALTH_THRESHOLD = 0.3f; // 30% health
 	private static final float CRITICAL_PULSE_SPEED = 0.05f;
+	private static final float CRITICAL_HEALTH_THRESHOLD = 0.3f; // 30% health
 
 	private double lastValidAngle = 0;
 
+	// Shake effect vars
 	private int screenShakeX = 0;
 	private int screenShakeY = 0;
 	private int screenShakeIntensity = 0;
 	private Random screenShakeRandom = new Random();
-	private ArrayList<WeaponPickup> weaponPickups;
 
 	private static GamePanel instance;
 
 	public GamePanel() {
 		instance = this;
-		setPreferredSize(new Dimension(WIDTH, HEIGHT));
+		setPreferredSize(new Dimension(currentWidth, currentHeight));
 		setBackground(Color.GRAY);
 		setFocusable(true);
 		addKeyListener(this);
+		addMouseListener(this);
 
 		try {
-			backgroundImage = ImageIO.read(getClass().getResource("/Background_Lab.png"));
+			backgroundImage = ImageIO.read(getClass().getResource("/Background.png"));
 		} catch (Exception e) {
-		    e.printStackTrace();
+			e.printStackTrace();
 		}
+
+		addComponentListener(new java.awt.event.ComponentAdapter() {
+			public void componentResized(java.awt.event.ComponentEvent e) {
+				handleResize();
+			}
+		});
 
 		initializeGame();
 	}
 
 	private void initializeGame() {
-		player = new Player(WIDTH / 2, HEIGHT / 2);
+		player = new Player(currentWidth / 2, currentHeight / 2);
+		objectivePickups = new ArrayList<>();
 		weaponPickups = new ArrayList<>();
+		healthPickups = new ArrayList<>();
 		enemies = new ArrayList<>();
 		bullets = new ArrayList<>();
 		random = new Random();
@@ -93,6 +116,27 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
 		timer = new Timer(20, this);
 		timer.start();
+	}
+
+	private void handleResize() {
+		Dimension screenSize = getSize();
+		currentWidth = screenSize.width;
+		currentHeight = screenSize.height;
+
+		// Calculate scale factor to fill the window while maintaining aspect ratio
+		float scaleX = (float) currentWidth / BASE_currentWidth;
+		float scaleY = (float) currentHeight / BASE_currentHeight;
+		SCALE_FACTOR = Math.max(scaleX, scaleY);
+
+		// Center the game area
+		int gameWidth = (int) (BASE_currentWidth * SCALE_FACTOR);
+		int gameHeight = (int) (BASE_currentHeight * SCALE_FACTOR);
+		int offsetX = (currentWidth - gameWidth) / 2;
+		int offsetY = (currentHeight - gameHeight) / 2;
+
+		AffineTransform transform = new AffineTransform();
+		transform.translate(offsetX, offsetY);
+		transform.scale(SCALE_FACTOR, SCALE_FACTOR);
 	}
 
 	public static void triggerHitEffects() {
@@ -105,7 +149,6 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 	private Class<? extends Weapon> getRandomAvailableWeaponType() {
 		ArrayList<Class<? extends Weapon>> availableTypes = new ArrayList<>();
 
-		// Add weapon types the player doesn't have
 		if (!player.hasWeaponType(Shotgun.class))
 			availableTypes.add(Shotgun.class);
 		if (!player.hasWeaponType(RapidFire.class))
@@ -119,11 +162,11 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 	}
 
 	private void spawnWeaponPickup() {
-		if (random.nextInt(200) == 0) { // adjust probability as needed
+		if (random.nextInt(200) == 0) {
 			Class<? extends Weapon> weaponType = getRandomAvailableWeaponType();
 			if (weaponType != null) {
-				int x = random.nextInt(WIDTH - 20);
-				int y = random.nextInt(HEIGHT - 20);
+				int x = random.nextInt(currentWidth - 20);
+				int y = random.nextInt(currentHeight - 20);
 
 				// Create new weapon instance
 				Weapon weaponToSpawn = null;
@@ -139,14 +182,30 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		}
 	}
 
+	private void spawnHealthPickup() {
+		if (random.nextInt(300) == 0) {
+			int x = random.nextInt(currentWidth - 20);
+			int y = random.nextInt(currentHeight - 20);
+			healthPickups.add(new HealthPickup(x, y));
+		}
+	}
+
+	private void spawnObjectivePickup() {
+		if (random.nextInt(200) == 0) {
+			int x = random.nextInt(currentWidth - 20);
+			int y = random.nextInt(currentHeight - 20);
+			objectivePickups.add(new ObjectivePickup(x, y));
+		}
+	}
+
 	private void drawDamageEffect(Graphics2D g2d) {
 		// Calculate the strongest effect between damage hit and critical pulse
 		float effectStrength = Math.max(damageEffect, criticalEffect);
 
 		if (effectStrength > 0) {
-			int centerX = WIDTH / 2;
-			int centerY = HEIGHT / 2;
-			int radius = (int) (Math.max(WIDTH, HEIGHT) * 0.7);
+			int centerX = currentWidth / 2;
+			int centerY = currentHeight / 2;
+			int radius = (int) (Math.max(currentWidth, currentHeight) * 0.7);
 
 			// Create a radial gradient paint
 			RadialGradientPaint paint = new RadialGradientPaint(centerX, centerY, radius,
@@ -159,7 +218,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
 			g2d.setPaint(paint);
 			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, effectStrength));
-			g2d.fillRect(0, 0, WIDTH, HEIGHT);
+			g2d.fillRect(0, 0, currentWidth, currentHeight);
 
 			g2d.setPaint(originalPaint);
 			g2d.setComposite(originalComposite);
@@ -171,33 +230,48 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		super.paintComponent(g);
 		Graphics2D g2d = (Graphics2D) g;
 
-		// Draw background
+		// Save original transform
+		AffineTransform originalTransform = g2d.getTransform();
+
+		// Scale everything
+		g2d.scale(SCALE_FACTOR, SCALE_FACTOR);
+
+		// Draw background scaled
 		if (backgroundImage != null) {
-	        g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), null);
-	    }
+			g.drawImage(backgroundImage, 0, 0, BASE_currentWidth, BASE_currentHeight, null);
+		}
 
 		// Draw pause overlay if paused
 		if (isPaused) {
+			// Save current transform
+			AffineTransform pauseTransform = g2d.getTransform();
+			// Reset to original transform for overlay
+			g2d.setTransform(originalTransform);
+
 			// Semi-transparent black overlay
 			g2d.setColor(new Color(0, 0, 0, 150));
-			g2d.fillRect(0, 0, WIDTH, HEIGHT);
+			g2d.fillRect(0, 0, getWidth(), getHeight());
+
+			// Scale the text appropriately
+			g2d.scale(SCALE_FACTOR, SCALE_FACTOR);
 
 			// Draw pause text
 			g2d.setColor(Color.WHITE);
 			g2d.setFont(new Font("Arial", Font.BOLD, 50));
 			String pauseText = "PAUSED";
-			int textWidth = g2d.getFontMetrics().stringWidth(pauseText);
-			g2d.drawString(pauseText, WIDTH / 2 - textWidth / 2, HEIGHT / 2);
+			FontMetrics fm = g2d.getFontMetrics();
+			int textWidth = fm.stringWidth(pauseText);
+			g2d.drawString(pauseText, BASE_currentWidth / 2 - textWidth / 2, BASE_currentHeight / 2);
 
 			// Draw instructions
 			g2d.setFont(new Font("Arial", Font.PLAIN, 20));
 			String instructionText = "Press ESC to resume";
-			textWidth = g2d.getFontMetrics().stringWidth(instructionText);
-			g2d.drawString(instructionText, WIDTH / 2 - textWidth / 2, HEIGHT / 2 + 40);
-		}
+			textWidth = fm.stringWidth(instructionText);
+			g2d.drawString(instructionText, BASE_currentWidth / 2 - textWidth / 2, BASE_currentHeight / 2 + 40);
 
-		// Transform w/o shake
-		AffineTransform originalTransform = g2d.getTransform();
+			// Restore transform
+			g2d.setTransform(pauseTransform);
+		}
 
 		// Shake
 		g2d.translate(screenShakeX, screenShakeY);
@@ -208,12 +282,12 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		player.render((Graphics2D) g);
 
 		// Draw current weapon sprite
-		Point mouse = getMousePosition();
+		Point mouse = getScaledMousePosition();
 		if (mouse != null) {
 			int centerX = player.getCollisionX() + Player.getCollisionWidth() / 2;
 			int centerY = player.getCollisionY() + Player.getCollisionHeight() / 2;
 
-			double angle = Math.atan2(mouse.y - centerY, mouse.x - centerX);
+			double angle = calculateAimAngle();
 
 			// Save the current transform
 			AffineTransform old = g2d.getTransform();
@@ -261,8 +335,14 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 			g2d.setTransform(old);
 		}
 
-		// Draw weapon pickups
+		// Draw pickups
 		for (WeaponPickup pickup : weaponPickups) {
+			pickup.render(g);
+		}
+		for (HealthPickup pickup : healthPickups) {
+			pickup.render(g);
+		}
+		for (ObjectivePickup pickup : objectivePickups) {
 			pickup.render(g);
 		}
 
@@ -300,18 +380,20 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
 		// Draw score and current weapon
 		g.setColor(Color.WHITE);
-		Font customFont = new Font("Arial", Font.BOLD, 30); // Font size 30, bold style
+		Font customFont = new Font("Arial", Font.BOLD, 30);
 		g.setFont(customFont);
 		g.drawString("Score: " + score, 10, 30);
 
 		drawHealthBar(g);
 		drawInventoryUI(g);
+
+		g2d.setTransform(originalTransform);
 	}
 
 	private void drawHealthBar(Graphics g) {
 		int barWidth = 200;
 		int barHeight = 20;
-		int x = WIDTH - barWidth - 10;
+		int x = currentWidth - barWidth - 10;
 		int y = 10;
 
 		// Draw background
@@ -340,20 +422,24 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		String healthText = player.getHealth() + "/100";
 		g.setColor(Color.WHITE);
 		FontMetrics fm = g.getFontMetrics();
-		int textX = x + (barWidth - fm.stringWidth(healthText)) / 2;
-		int textY = y + ((barHeight - fm.getHeight()) / 2) + fm.getAscent();
+		int textX = x + 5;
+		int textY = y + ((barHeight - fm.getHeight()) / 2) + fm.getAscent() - 2;
+		Font originalFont = g.getFont();
+		Font customFont = new Font("Arial", Font.BOLD | Font.ITALIC, 20);
+		g.setFont(customFont);
 		g.drawString(healthText, textX, textY);
+		g.setFont(originalFont);
 	}
 
 	private void drawInventoryUI(Graphics g) {
 		ArrayList<Weapon> inventory = player.getInventory();
-		int slotWidth = 64; // Increased slot size to match Minecraft-style
-		int slotHeight = 64; // Square slots
-		int padding = 2; // Reduced padding between slots
+		int slotWidth = 64;
+		int slotHeight = 64;
+		int padding = 2; // Padding between slots
 		int startX = 10; // Starting X position
-		int startY = HEIGHT - slotHeight - 10; // Position from bottom of screen
+		int startY = currentHeight - slotHeight - 10; // Position from bottom of screen
 
-		// Draw the inventory slots horizontally
+		// Draw the inventory slots
 		for (int i = 0; i < inventory.size(); i++) {
 			int x = startX + (i * (slotWidth + padding));
 
@@ -371,7 +457,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 			if (weapon != null && weapon.getSprite() != null) {
 				BufferedImage sprite = weapon.getSprite();
 
-				// Calculate scaling to fit weapon while maintaining aspect ratio
+				// Calculate scaling to fit weapon
 				double scale = Math.min((double) (slotWidth - 16) / sprite.getWidth(),
 						(double) (slotHeight - 16) / sprite.getHeight());
 
@@ -396,8 +482,19 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		screenShakeIntensity = intensity;
 	}
 
+	private Point getScaledMousePosition() {
+		Point mousePos = getMousePosition();
+		if (mousePos != null) {
+			int offsetX = (currentWidth - (int) (BASE_currentWidth * SCALE_FACTOR)) / 2;
+			int offsetY = (currentHeight - (int) (BASE_currentHeight * SCALE_FACTOR)) / 2;
+			return new Point((int) ((mousePos.x - offsetX) / SCALE_FACTOR),
+					(int) ((mousePos.y - offsetY) / SCALE_FACTOR));
+		}
+		return null;
+	}
+
 	private double calculateAimAngle() {
-		Point mouse = getMousePosition();
+		Point mouse = getScaledMousePosition();
 		if (mouse != null) {
 			int centerX = player.getX() + Player.getSize() / 2;
 			int centerY = player.getY() + Player.getSize() / 2;
@@ -418,15 +515,14 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 	}
 
 	private Point calculateGunTip() {
-		Point mouse = getMousePosition();
+		Point mouse = getScaledMousePosition();
 		if (mouse != null) {
 			// Use the same center point as weapon rendering
 			int centerX = player.getCollisionX() + Player.getCollisionWidth() / 2;
 			int centerY = player.getCollisionY() + Player.getCollisionHeight() / 2;
 
-			double angle = Math.atan2(mouse.y - centerY, mouse.x - centerX);
+			double angle = calculateAimAngle();
 
-			// Use a smaller fixed offset first to test
 			int gunLength = 20; // Start with a small value and adjust
 
 			int tipX = centerX + (int) (Math.cos(angle) * gunLength);
@@ -459,8 +555,8 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		}
 
 		// Handle continuous firing
-		if (isFiring) {
-			Point mouse = getMousePosition();
+		if (isMouseFiring || isSpaceFiring) {
+			Point mouse = getScaledMousePosition();
 			Point gunTip = calculateGunTip();
 			if (mouse != null && gunTip != null) {
 				double angle = calculateAimAngle(); // Use the same angle calculation
@@ -477,7 +573,8 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		while (bulletIt.hasNext()) {
 			Bullet bullet = bulletIt.next();
 			bullet.update();
-			if (bullet.getX() < 0 || bullet.getX() > WIDTH || bullet.getY() < 0 || bullet.getY() > HEIGHT) {
+			if (bullet.getX() < 0 || bullet.getX() > currentWidth || bullet.getY() < 0
+					|| bullet.getY() > currentHeight) {
 				bulletIt.remove();
 			}
 		}
@@ -485,7 +582,9 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		// Update enemies
 		enemies.forEach(Enemy::update);
 
+		spawnObjectivePickup();
 		spawnWeaponPickup();
+		spawnHealthPickup();
 
 		ArrayList<WeaponPickup> newPickups = new ArrayList<>();
 		Iterator<WeaponPickup> pickupIt = weaponPickups.iterator();
@@ -499,8 +598,38 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 			}
 
 			if (pickup.collidesWith(player)) {
-				Weapon oldWeapon = player.pickupWeapon(pickup.getWeapon());
+				player.pickupWeapon(pickup.getWeapon());
 				pickupIt.remove();
+			}
+		}
+
+		// Update health pickups
+		Iterator<HealthPickup> healthIt = healthPickups.iterator();
+		while (healthIt.hasNext()) {
+			HealthPickup pickup = healthIt.next();
+			pickup.update();
+			if (pickup.shouldDespawn()) {
+				healthIt.remove();
+				continue;
+			}
+			if (pickup.collidesWith(player)) {
+				player.heal(pickup.getHealAmount());
+				healthIt.remove();
+			}
+		}
+
+		// Update objective pickups
+		Iterator<ObjectivePickup> objectiveIt = objectivePickups.iterator();
+		while (objectiveIt.hasNext()) {
+			ObjectivePickup pickup = objectiveIt.next();
+			pickup.update();
+			if (pickup.shouldDespawn()) {
+				objectiveIt.remove();
+				continue;
+			}
+			if (pickup.collidesWith(player)) {
+				score += pickup.getScoreValue();
+				objectiveIt.remove();
 			}
 		}
 
@@ -519,7 +648,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 			}
 
 			// Calculate pulse intensity (creates a smooth sine wave)
-			criticalEffect = (float) (0.3f + 0.2f * Math.sin(criticalPulse));
+			criticalEffect = (float) (0.75f + 0.2f * Math.sin(criticalPulse));
 		} else {
 			criticalEffect = 0;
 			criticalPulse = 0;
@@ -570,7 +699,8 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 	private void togglePause() {
 		isPaused = !isPaused;
 		if (isPaused) {
-			isFiring = false;
+			isMouseFiring = false;
+			isSpaceFiring = false;
 			timer.stop();
 		} else {
 			timer.start();
@@ -583,7 +713,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		timer.stop();
 
 		// Clear all game objects
-		player = new Player(WIDTH / 2, HEIGHT / 2);
+		player = new Player(currentWidth / 2, currentHeight / 2);
 		enemies = new ArrayList<>();
 		bullets = new ArrayList<>();
 		weaponPickups = new ArrayList<>();
@@ -595,7 +725,8 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		rightPressed = false;
 		upPressed = false;
 		downPressed = false;
-		isFiring = false;
+		isSpaceFiring = false;
+		isMouseFiring = false;
 		isWeaponSwitching = false;
 		weaponSwitchScale = 1.0f;
 		screenShakeIntensity = 0;
@@ -654,11 +785,11 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 				switchWeapon(1);
 				break;
 			case KeyEvent.VK_SPACE:
-				Point mouse = getMousePosition();
+				Point mouse = getScaledMousePosition();
 				Point gunTip = calculateGunTip();
-				isFiring = true;
+				isSpaceFiring = true;
 				if (mouse != null && gunTip != null) {
-					double angle = calculateAimAngle(); // Use the same angle calculation
+					double angle = calculateAimAngle();
 					ArrayList<Bullet> newBullets = player.shoot(gunTip.x, gunTip.y, angle);
 					if (!newBullets.isEmpty()) {
 						triggerScreenShake(5);
@@ -672,31 +803,67 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 	}
 
 	@Override
-	public void keyReleased(KeyEvent e) {
+	public void mousePressed(MouseEvent e) {
 		if (!isPaused) {
-			switch (e.getKeyCode()) {
-			case KeyEvent.VK_W:
-			case KeyEvent.VK_UP:
-				upPressed = false;
-				break;
-			case KeyEvent.VK_S:
-			case KeyEvent.VK_DOWN:
-				downPressed = false;
-				break;
-			case KeyEvent.VK_A:
-			case KeyEvent.VK_LEFT:
-				leftPressed = false;
-				break;
-			case KeyEvent.VK_D:
-			case KeyEvent.VK_RIGHT:
-				rightPressed = false;
-				break;
-			case KeyEvent.VK_SPACE:
-				isFiring = false;
-				break;
+			if (e.getButton() == MouseEvent.BUTTON1) {
+				isMouseFiring = true;
+				Point gunTip = calculateGunTip();
+				if (gunTip != null) {
+					double angle = calculateAimAngle();
+					ArrayList<Bullet> newBullets = player.shoot(gunTip.x, gunTip.y, angle);
+					if (!newBullets.isEmpty()) {
+						triggerScreenShake(5);
+					}
+					bullets.addAll(newBullets);
+				}
 			}
-			updatePlayerVelocity();
 		}
+	}
+
+	@Override
+	public void mouseReleased(MouseEvent e) {
+		if (e.getButton() == MouseEvent.BUTTON1) {
+			isMouseFiring = false;
+		}
+	}
+
+	@Override
+	public void keyReleased(KeyEvent e) {
+		switch (e.getKeyCode()) {
+		case KeyEvent.VK_W:
+		case KeyEvent.VK_UP:
+			upPressed = false;
+			break;
+		case KeyEvent.VK_S:
+		case KeyEvent.VK_DOWN:
+			downPressed = false;
+			break;
+		case KeyEvent.VK_A:
+		case KeyEvent.VK_LEFT:
+			leftPressed = false;
+			break;
+		case KeyEvent.VK_D:
+		case KeyEvent.VK_RIGHT:
+			rightPressed = false;
+			break;
+		case KeyEvent.VK_SPACE:
+			isSpaceFiring = false;
+			break;
+		}
+		updatePlayerVelocity();
+
+	}
+
+	@Override
+	public void mouseClicked(MouseEvent e) {
+	}
+
+	@Override
+	public void mouseEntered(MouseEvent e) {
+	}
+
+	@Override
+	public void mouseExited(MouseEvent e) {
 	}
 
 	private void updatePlayerVelocity() {

@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 public class RapidFire extends Weapon {
 	public RapidFire() {
-		super(15, "/RapidFire.png", 48, 16); // 15 shots per second
+		super(15, "/RapidFire.png", 56, 24); // 15 shots per second
 	}
 
 	@Override
