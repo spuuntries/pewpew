@@ -24,11 +24,6 @@ public class Player extends GameObject {
 	private long invulnerabilityTimer = 0;
 	private static final long INVULNERABILITY_DURATION = 1000; // 1 second of invulnerability after taking damage
 
-	private boolean isHit = false;
-	private long hitEffectTimer = 0;
-	private static final long HIT_EFFECT_DURATION = 100; // milliseconds
-	private Color hitTint = new Color(255, 0, 0, 100);
-
 	private static final int MAX_WEAPONS = 2;
 	private static final int WIDTH = 1280;
 	private static final int HEIGHT = 720;
@@ -79,8 +74,6 @@ public class Player extends GameObject {
 			health = Math.max(0, health - amount);
 			isInvulnerable = true;
 			invulnerabilityTimer = System.currentTimeMillis();
-			isHit = true;
-			hitEffectTimer = System.currentTimeMillis();
 
 			// Trigger screen shake and damage effect in GamePanel
 			GamePanel.triggerHitEffects();
@@ -220,17 +213,17 @@ public class Player extends GameObject {
 
 	private BufferedImage[] getCurrentAnimation() {
 		switch (currentState) {
-		case WALKING_LEFT:
-			return walkLeftSprites;
-		case WALKING_RIGHT:
-			return walkRightSprites;
-		case WALKING_UP:
-			return walkUpSprites;
-		case WALKING_DOWN:
-			return walkDownSprites;
-		case IDLE:
-		default:
-			return idleSprites;
+			case WALKING_LEFT:
+				return walkLeftSprites;
+			case WALKING_RIGHT:
+				return walkRightSprites;
+			case WALKING_UP:
+				return walkUpSprites;
+			case WALKING_DOWN:
+				return walkDownSprites;
+			case IDLE:
+			default:
+				return idleSprites;
 		}
 	}
 
@@ -253,8 +246,9 @@ public class Player extends GameObject {
 			g.drawImage(currentAnim[currentFrame], x, y, DISPLAY_WIDTH, DISPLAY_HEIGHT, null);
 
 			// Debug: draw collision box
-//			g.setColor(new Color(255, 0, 0, 50));
-//			g.fillRect(getCollisionX(), getCollisionY(), COLLISION_WIDTH, COLLISION_HEIGHT);
+			// g.setColor(new Color(255, 0, 0, 50));
+			// g.fillRect(getCollisionX(), getCollisionY(), COLLISION_WIDTH,
+			// COLLISION_HEIGHT);
 		}
 	}
 
