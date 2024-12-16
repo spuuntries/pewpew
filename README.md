@@ -1,6 +1,6 @@
 # **Final Project Object-Oriented Programming (N)**
 
-<p style="align: center;">
+<p align="center">
   <img src="./assets/wmcb.webp" style="display: inline-block; width: 25vw"><br>
   <b style="font-size: 2.5vw">When Mother Nature Claps Back (WMNCB)</b>
 </p>
