@@ -6,15 +6,16 @@
 </p>
 <br>
 
-| Name | Student ID |
-|--|--|
-| Faiz Muhammad Kautsar | 5054231013 |
-| Shalahuddin Ahmad Cahyoga | 5054231014 |
+| Name | Student ID | Github |
+|--|--|--|
+| Faiz Muhammad Kautsar | 5054231013 | spuuntries |
+| Shalahuddin Ahmad Cahyoga | 5054231014 | A-d-d-i-n |
 
 
 To visualize the class diagram of our project, here's an ELK-rendered mermaid graph of our class diagram (some details like insignificant flags are ofc omitted for readability and brevity):  
 
 ![Class Diagram Rendered](./assets/rendered.png)
+
 
 Here's the source:  
 
@@ -28,6 +29,7 @@ classDiagram
     GamePanel o-- HealthPickup
     GamePanel o-- ObjectivePickup
     GamePanel o-- WeaponPickup
+    GamePanel -- GameState
 
     %% GameObject Inheritance
     GameObject <|-- Player
@@ -54,6 +56,13 @@ classDiagram
     %% Enemy Relationship
     Enemy o-- Player
 
+    class GameState {
+        <<enumeration>>
+        MENU
+        PLAYING
+        PAUSED
+    }
+
     class GameObject {
         <<abstract>>
         #int x
@@ -69,6 +78,9 @@ classDiagram
     }
     
     class GamePanel {
+        <<ActionListener>>
+        <<KeyListener>>
+        <<MouseListener>>
         -Player player
         -ArrayList<Enemy> enemies
         -ArrayList<Bullet> bullets
@@ -77,11 +89,19 @@ classDiagram
         -ArrayList<WeaponPickup> weaponPickups
         -Timer timer
         -int score
+        -GameState currentState
+        -boolean isPaused
+        -float damageEffect
+        -float criticalEffect
+        -int screenShakeIntensity
         +actionPerformed(ActionEvent e)
         +paintComponent(Graphics g)
         -updateGameState()
         -checkCollisions()
         -spawnEnemies()
+        -handleResize()
+        -togglePause()
+        -gameOver()
     }
 
     class Player {
