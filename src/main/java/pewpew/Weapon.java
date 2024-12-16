@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import javax.imageio.ImageIO;
 
 public abstract class Weapon {
+	private static final float WEAPON_SCALE = 0.5f;
 	protected int fireRate; // shots per second
 	protected long lastShotTime;
 	protected BufferedImage sprite;
@@ -16,8 +17,8 @@ public abstract class Weapon {
 	public Weapon(int fireRate, String spritePath, int displayWidth, int displayHeight) {
 		this.fireRate = fireRate;
 		this.lastShotTime = 0;
-		this.displayWidth = displayWidth;
-		this.displayHeight = displayHeight;
+		this.displayWidth = (int) (displayWidth * WEAPON_SCALE);
+		this.displayHeight = (int) (displayHeight * WEAPON_SCALE);
 		try {
 			sprite = ImageIO.read(getClass().getResource(spritePath));
 		} catch (IOException e) {

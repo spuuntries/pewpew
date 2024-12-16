@@ -1,11 +1,16 @@
 package pewpew;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
+import java.awt.Composite;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Paint;
 import java.awt.Point;
+import java.awt.RadialGradientPaint;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -43,13 +48,25 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 	private float weaponSwitchScale = 1.0f;
 	private boolean isWeaponSwitching = false;
 
+	private float damageEffect = 0.0f;
+	private float criticalEffect = 0.0f;
+	private float criticalPulse = 0.0f;
+	private static final float DAMAGE_EFFECT_DECAY = 0.05f;
+	private static final float CRITICAL_HEALTH_THRESHOLD = 0.3f; // 30% health
+	private static final float CRITICAL_PULSE_SPEED = 0.05f;
+
+	private double lastValidAngle = 0;
+
 	private int screenShakeX = 0;
 	private int screenShakeY = 0;
 	private int screenShakeIntensity = 0;
 	private Random screenShakeRandom = new Random();
 	private ArrayList<WeaponPickup> weaponPickups;
 
+	private static GamePanel instance;
+
 	public GamePanel() {
+		instance = this;
 		setPreferredSize(new Dimension(WIDTH, HEIGHT));
 		setBackground(Color.GRAY);
 		setFocusable(true);
@@ -68,6 +85,13 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
 		timer = new Timer(20, this);
 		timer.start();
+	}
+
+	public static void triggerHitEffects() {
+		if (instance != null) {
+			instance.damageEffect = 1.0f;
+			instance.triggerScreenShake(15);
+		}
 	}
 
 	private Class<? extends Weapon> getRandomAvailableWeaponType() {
@@ -107,6 +131,33 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		}
 	}
 
+	private void drawDamageEffect(Graphics2D g2d) {
+		// Calculate the strongest effect between damage hit and critical pulse
+		float effectStrength = Math.max(damageEffect, criticalEffect);
+
+		if (effectStrength > 0) {
+			int centerX = WIDTH / 2;
+			int centerY = HEIGHT / 2;
+			int radius = (int) (Math.max(WIDTH, HEIGHT) * 0.7);
+
+			// Create a radial gradient paint
+			RadialGradientPaint paint = new RadialGradientPaint(centerX, centerY, radius,
+					new float[] { 0.0f, 0.7f, 1.0f },
+					new Color[] { new Color(0, 0, 0, 0), new Color(255, 0, 0, (int) (effectStrength * 100)),
+							new Color(255, 0, 0, (int) (effectStrength * 150)) });
+
+			Composite originalComposite = g2d.getComposite();
+			Paint originalPaint = g2d.getPaint();
+
+			g2d.setPaint(paint);
+			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, effectStrength));
+			g2d.fillRect(0, 0, WIDTH, HEIGHT);
+
+			g2d.setPaint(originalPaint);
+			g2d.setComposite(originalComposite);
+		}
+	}
+
 	@Override
 	protected void paintComponent(Graphics g) {
 		super.paintComponent(g);
@@ -139,23 +190,24 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		g2d.translate(screenShakeX, screenShakeY);
 
 		// Draw player
-		g.setColor(Color.RED);
-		g.fillRect(player.getX(), player.getY(), Player.getSize(), Player.getSize());
+//		g.setColor(Color.RED);
+//		g.fillRect(player.getX(), player.getY(), Player.getSize(), Player.getSize());
+		player.render((Graphics2D) g);
 
 		// Draw current weapon sprite
 		Point mouse = getMousePosition();
 		if (mouse != null) {
-			int centerX = player.getX() + Player.getSize() / 2;
-			int centerY = player.getY() + Player.getSize() / 2;
+			int centerX = player.getCollisionX() + Player.getCollisionWidth() / 2;
+			int centerY = player.getCollisionY() + Player.getCollisionHeight() / 2;
 
 			double angle = Math.atan2(mouse.y - centerY, mouse.x - centerX);
-			// player.updateGunAngle(angle);
 
 			// Save the current transform
 			AffineTransform old = g2d.getTransform();
 
 			// Translate to player center
 			g2d.translate(centerX, centerY);
+			// player.updateGunAngle(angle);
 
 			// Determine if we need to flip the sprite
 			boolean facingLeft = Math.abs(angle) > Math.PI / 2;
@@ -212,6 +264,13 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 			bullet.render(g);
 		}
 
+		// Debugging tip calc
+		Point gunTip = calculateGunTip();
+		if (gunTip != null) {
+			g2d.setColor(Color.RED);
+			g2d.fillOval(gunTip.x - 2, gunTip.y - 2, 4, 4);
+		}
+
 		// Update screen shake
 		if (screenShakeIntensity > 0) {
 			screenShakeX = screenShakeRandom.nextInt(screenShakeIntensity * 2) - screenShakeIntensity;
@@ -224,6 +283,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
 		// Apply screen shake
 		g2d.setTransform(originalTransform);
+		drawDamageEffect(g2d);
 
 		// Draw score and current weapon
 		g.setColor(Color.WHITE);
@@ -231,14 +291,91 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 		g.setFont(customFont);
 		g.drawString("Score: " + score, 10, 30);
 
+		drawHealthBar(g);
 		drawInventoryUI(g);
+	}
+
+	private void drawHealthBar(Graphics g) {
+		int barWidth = 200;
+		int barHeight = 20;
+		int x = WIDTH - barWidth - 10;
+		int y = 10;
+
+		// Draw background
+		g.setColor(Color.GRAY);
+		g.fillRect(x, y, barWidth, barHeight);
+
+		// Draw health
+		float healthPercent = (float) player.getHealth() / 100;
+		int healthWidth = (int) (barWidth * healthPercent);
+
+		// Change color based on health level
+		if (healthPercent > 0.6f) {
+			g.setColor(Color.GREEN);
+		} else if (healthPercent > 0.3f) {
+			g.setColor(Color.YELLOW);
+		} else {
+			g.setColor(Color.RED);
+		}
+		g.fillRect(x, y, healthWidth, barHeight);
+
+		// Draw border
+		g.setColor(Color.WHITE);
+		g.drawRect(x, y, barWidth, barHeight);
+
+		// Draw health text
+		String healthText = player.getHealth() + "/100";
+		g.setColor(Color.WHITE);
+		FontMetrics fm = g.getFontMetrics();
+		int textX = x + (barWidth - fm.stringWidth(healthText)) / 2;
+		int textY = y + ((barHeight - fm.getHeight()) / 2) + fm.getAscent();
+		g.drawString(healthText, textX, textY);
 	}
 
 	private void drawInventoryUI(Graphics g) {
 		ArrayList<Weapon> inventory = player.getInventory();
+		int slotWidth = 64; // Increased slot size to match Minecraft-style
+		int slotHeight = 64; // Square slots
+		int padding = 2; // Reduced padding between slots
+		int startX = 10; // Starting X position
+		int startY = HEIGHT - slotHeight - 10; // Position from bottom of screen
+
+		// Draw the inventory slots horizontally
 		for (int i = 0; i < inventory.size(); i++) {
+			int x = startX + (i * (slotWidth + padding));
+
+			// Draw slot background
+			g.setColor(
+					i == player.getCurrentWeaponIndex() ? new Color(255, 255, 0, 100) : new Color(128, 128, 128, 100));
+			g.fillRect(x, startY, slotWidth, slotHeight);
+
+			// Draw slot border
 			g.setColor(i == player.getCurrentWeaponIndex() ? Color.YELLOW : Color.WHITE);
-			g.drawString((i + 1) + ": " + inventory.get(i).getClass().getSimpleName(), 10, HEIGHT - 20 - (i * 20));
+			g.drawRect(x, startY, slotWidth, slotHeight);
+
+			// Draw weapon sprite
+			Weapon weapon = inventory.get(i);
+			if (weapon != null && weapon.getSprite() != null) {
+				BufferedImage sprite = weapon.getSprite();
+
+				// Calculate scaling to fit weapon while maintaining aspect ratio
+				double scale = Math.min((double) (slotWidth - 16) / sprite.getWidth(),
+						(double) (slotHeight - 16) / sprite.getHeight());
+
+				int scaledWidth = (int) (sprite.getWidth() * scale);
+				int scaledHeight = (int) (sprite.getHeight() * scale);
+
+				// Center the weapon in the slot
+				int weaponX = x + (slotWidth - scaledWidth) / 2;
+				int weaponY = startY + (slotHeight - scaledHeight) / 2;
+
+				g.drawImage(sprite, weaponX, weaponY, scaledWidth, scaledHeight, null);
+			}
+
+			// Draw slot number
+			g.setColor(Color.WHITE);
+			g.setFont(new Font("Arial", Font.BOLD, 16));
+			g.drawString(String.valueOf(i + 1), x + 5, startY + 20);
 		}
 	}
 
@@ -252,34 +389,32 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 			int centerX = player.getX() + Player.getSize() / 2;
 			int centerY = player.getY() + Player.getSize() / 2;
 
-			// Calculate vector from center to mouse
 			double dx = mouse.x - centerX;
 			double dy = mouse.y - centerY;
+			double angle = Math.atan2(dy, dx);
 
-			// If cursor is too close to player center, use previous angle or default
+			// Only update last valid angle if far enough from center
 			double distance = Math.hypot(dx, dy);
-			if (distance < 10) { // Minimum distance threshold
-				return Math.atan2(dy > 0 ? 1 : -1, dx > 0 ? 1 : -1); // Use general direction
+			if (distance > 10) {
+				lastValidAngle = angle;
 			}
 
-			return Math.atan2(dy, dx);
+			return lastValidAngle;
 		}
-		return 0;
+		return lastValidAngle;
 	}
 
 	private Point calculateGunTip() {
 		Point mouse = getMousePosition();
 		if (mouse != null) {
-			int centerX = player.getX() + Player.getSize() / 2;
-			int centerY = player.getY() + Player.getSize() / 2;
+			// Use the same center point as weapon rendering
+			int centerX = player.getCollisionX() + Player.getCollisionWidth() / 2;
+			int centerY = player.getCollisionY() + Player.getCollisionHeight() / 2;
 
-			double angle = calculateAimAngle();
+			double angle = Math.atan2(mouse.y - centerY, mouse.x - centerX);
 
-			// Use a fixed length or average dimension instead of full width
-//			int gunLength = player.getCurrentWeapon().getDisplayWidth() / 2; // Or use a fixed value
-			// Or use average:
-			int gunLength = (player.getCurrentWeapon().getDisplayWidth() + player.getCurrentWeapon().getDisplayHeight())
-					/ 4;
+			// Use a smaller fixed offset first to test
+			int gunLength = 20; // Start with a small value and adjust
 
 			int tipX = centerX + (int) (Math.cos(angle) * gunLength);
 			int tipY = centerY + (int) (Math.sin(angle) * gunLength);
@@ -316,8 +451,11 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 			Point gunTip = calculateGunTip();
 			if (mouse != null && gunTip != null) {
 				double angle = calculateAimAngle(); // Use the same angle calculation
-				bullets.addAll(player.shoot(gunTip.x, gunTip.y, angle));
-				triggerScreenShake(5);
+				ArrayList<Bullet> newBullets = player.shoot(gunTip.x, gunTip.y, angle);
+				if (!newBullets.isEmpty()) {
+					triggerScreenShake(5);
+				}
+				bullets.addAll(newBullets);
 			}
 		}
 
@@ -353,6 +491,27 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 			}
 		}
 
+		if (damageEffect > 0) {
+			damageEffect -= DAMAGE_EFFECT_DECAY;
+			if (damageEffect < 0)
+				damageEffect = 0;
+		}
+
+		float healthPercent = (float) player.getHealth() / 100;
+		if (healthPercent <= CRITICAL_HEALTH_THRESHOLD) {
+			// Update pulse animation
+			criticalPulse += CRITICAL_PULSE_SPEED;
+			if (criticalPulse > Math.PI * 2) {
+				criticalPulse = 0;
+			}
+
+			// Calculate pulse intensity (creates a smooth sine wave)
+			criticalEffect = (float) (0.3f + 0.2f * Math.sin(criticalPulse));
+		} else {
+			criticalEffect = 0;
+			criticalPulse = 0;
+		}
+
 		weaponPickups.addAll(newPickups);
 	}
 
@@ -374,9 +533,17 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 			}
 
 			// Check player collision
-			if (Math.hypot(player.getX() - enemy.getX(),
-					player.getY() - enemy.getY()) < (Player.getSize() + Enemy.getSize()) / 2) {
-				gameOver();
+			int playerCenterX = player.getCollisionX() + Player.getCollisionWidth() / 2;
+			int playerCenterY = player.getCollisionY() + Player.getCollisionHeight() / 2;
+			int enemyCenterX = enemy.getX() + Enemy.getSize() / 2;
+			int enemyCenterY = enemy.getY() + Enemy.getSize() / 2;
+
+			double collisionDistance = (Player.getCollisionWidth() + Enemy.getSize()) / 2;
+			if (Math.hypot(playerCenterX - enemyCenterX, playerCenterY - enemyCenterY) < collisionDistance) {
+				player.takeDamage(20);
+				if (player.getHealth() <= 0) {
+					gameOver();
+				}
 			}
 		}
 	}
@@ -473,17 +640,17 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 			case KeyEvent.VK_2:
 				switchWeapon(1);
 				break;
-			case KeyEvent.VK_3:
-				switchWeapon(2);
-				break;
 			case KeyEvent.VK_SPACE:
 				Point mouse = getMousePosition();
 				Point gunTip = calculateGunTip();
 				isFiring = true;
 				if (mouse != null && gunTip != null) {
 					double angle = calculateAimAngle(); // Use the same angle calculation
-					bullets.addAll(player.shoot(gunTip.x, gunTip.y, angle));
-					triggerScreenShake(5);
+					ArrayList<Bullet> newBullets = player.shoot(gunTip.x, gunTip.y, angle);
+					if (!newBullets.isEmpty()) {
+						triggerScreenShake(5);
+					}
+					bullets.addAll(newBullets);
 				}
 				break;
 			}
